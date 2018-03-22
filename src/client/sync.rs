@@ -71,3 +71,35 @@ pub fn sync(host: &str, access_token: &str, handle: &tokio_core::reactor::Handle
         })
         )
 }
+
+pub struct SyncStream {
+    host: String,
+    token: String,
+    handle: tokio_core::reactor::Handle,
+    current_future: Box<Future<Item=SyncResult,Error=Error>>
+}
+
+impl Stream for SyncStream {
+    type Item = SyncResult;
+    type Error = Error;
+    fn poll(&mut self) -> futures::Poll<Option<Self::Item>,Self::Error> {
+        let poll_result = self.current_future.poll();
+        match poll_result {
+            Ok(futures::Async::Ready(item)) => {
+                self.current_future = sync(&self.host, &self.token, &self.handle, Some(item.next_batch.clone()));
+                Ok(futures::Async::Ready(Some(item)))
+            },
+            Ok(futures::Async::NotReady) => Ok(futures::Async::NotReady),
+            Err(e) => Err(e)
+        }
+    }
+}
+
+pub fn sync_stream(host: &str, access_token: &str, handle: &tokio_core::reactor::Handle) -> SyncStream {
+    SyncStream {
+        host: host.to_owned(),
+        token: access_token.to_owned(),
+        handle: handle.clone(),
+        current_future: sync(host, access_token, handle, None)
+    }
+}

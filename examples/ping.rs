@@ -2,7 +2,7 @@ extern crate rix;
 extern crate tokio_core;
 extern crate futures;
 
-use futures::Future;
+use futures::{Future, Stream};
 
 fn main() {
     let host = std::env::var("MATRIX_HOST").expect("Missing MATRIX_HOST");
@@ -10,10 +10,12 @@ fn main() {
     let mut core = tokio_core::reactor::Core::new().unwrap();
     let handle = core.handle();
 
-    let task = rix::client::sync(&host, &token, &handle, None)
-        .and_then(|res| {
-            rix::client::sync(&host, &token, &handle, Some(res.next_batch))
+    let task = rix::client::sync_stream(&host, &token, &handle)
+        .skip(1)
+        .for_each(|item| {
+            println!("{:?}", item);
+            Ok(())
         });
 
-    println!("{:?}", core.run(task).unwrap());
+    core.run(task).unwrap();
 }
