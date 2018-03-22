@@ -19,5 +19,8 @@ quick_error! {
         JSON(e: serde_json::Error) {
             from()
         }
+        Other(details: String) {
+            from()
+        }
     }
 }

@@ -2,6 +2,8 @@ extern crate hyper;
 extern crate hyper_tls;
 extern crate futures;
 extern crate tokio_core;
+extern crate rand;
+#[macro_use]
 extern crate serde_json;
 #[macro_use]
 extern crate quick_error;

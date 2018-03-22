@@ -14,6 +14,19 @@ fn main() {
         .skip(1)
         .for_each(|item| {
             println!("{:?}", item);
+            for (room, content) in item.rooms.join {
+                let events = content.timeline.events;
+                for evt in events {
+                    if evt.event_type == "m.room.message" {
+                        let body = evt.content["body"].as_str();
+                        if let Some(body) = body {
+                            if body == "ping" {
+                                handle.spawn(rix::client::send_message(&host, &token, &handle, &room, "pong").map_err(|e|eprintln!("{:?}", e)));
+                            }
+                        }
+                    }
+                }
+            }
             Ok(())
         });
 
