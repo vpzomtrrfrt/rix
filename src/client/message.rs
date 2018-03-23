@@ -13,16 +13,38 @@ use std::str::FromStr;
 use futures::{Future, Stream};
 
 pub fn send_message(host: &str, token: &str, handle: &tokio_core::reactor::Handle, room: &str, msg: &str) -> Box<Future<Item=(),Error=Error>> {
+    let body = json!({
+        "msgtype": "m.text",
+        "body": msg
+    }).to_string();
+    send_message_internal(host, token, handle, room, body)
+}
+
+pub fn send_image(host: &str, token: &str, handle: &tokio_core::reactor::Handle, room: &str, url: &str, msg: &str) -> Box<Future<Item=(),Error=Error>> {
+    let body = json!({
+        "msgtype": "m.image",
+        "url": url,
+        "body": msg
+    }).to_string();
+    send_message_internal(host, token, handle, room, body)
+}
+
+pub fn send_file(host: &str, token: &str, handle: &tokio_core::reactor::Handle, room: &str, url: &str, msg: &str) -> Box<Future<Item=(),Error=Error>> {
+    let body = json!({
+        "msgtype": "m.file",
+        "url": url,
+        "body": msg
+    }).to_string();
+    send_message_internal(host, token, handle, room, body)
+}
+
+fn send_message_internal(host: &str, token: &str, handle: &tokio_core::reactor::Handle, room: &str, body: String) -> Box<Future<Item=(),Error=Error>> {
     let http = hyper::Client::configure()
         .connector(box_fut_try!(hyper_tls::HttpsConnector::new(1, &handle)
                                                  .map_err(|e| e.into())))
         .build(&handle);
     let mut rng = rand::thread_rng();
     let id: String = rng.gen_ascii_chars().take(16).collect();
-    let body = json!({
-        "body": msg.to_owned(),
-        "msgtype": "m.text"
-    }).to_string();
     let mut request = hyper::Request::new(hyper::Method::Put,
                                       box_fut_try!(hyper::Uri::from_str(&format!("{}/_matrix/client/r0/rooms/{}/send/m.room.message/{}?access_token={}", host, room, id, token)).map_err(|e| Error::HTTP(e.into()))));
     request.headers_mut().set(hyper::header::ContentType::json());
