@@ -26,8 +26,8 @@ pub struct EventContainer {
 
 #[derive(Deserialize, Debug)]
 pub struct GroupSyncResult {
-    pub timeline: EventContainer,
-    pub ephemeral: EventContainer
+    pub timeline: Option<EventContainer>,
+    pub ephemeral: Option<EventContainer>
 }
 
 type GroupSyncContainer = std::collections::HashMap<String, GroupSyncResult>;
@@ -48,7 +48,13 @@ pub struct SyncResult {
 
 fn group_events<'a>(container: &'a GroupSyncContainer) -> Box<std::iter::Iterator<Item=&'a Event> + 'a> {
     Box::new(container.iter().flat_map(|(_, group)| {
-        group.timeline.events.iter().chain(&group.ephemeral.events)
+        vec![&group.timeline, &group.ephemeral]
+            .into_iter()
+            .filter_map(|x| match x {
+                &Some(ref x) => Some(x),
+                &None => None
+            })
+            .flat_map(|x| x.events.iter())
     }))
 }
 
@@ -69,8 +75,12 @@ fn fill_group_result(id: &str, container: &mut EventContainer) {
 
 fn fill_group_container(container: &mut GroupSyncContainer) {
     for (id, room) in container {
-        fill_group_result(id, &mut room.timeline);
-        fill_group_result(id, &mut room.ephemeral);
+        if let Some(ref mut timeline) = room.timeline {
+            fill_group_result(id, timeline);
+        }
+        if let Some(ref mut ephemeral) = room.ephemeral {
+            fill_group_result(id, ephemeral);
+        }
     }
 }
 
