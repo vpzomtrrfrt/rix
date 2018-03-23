@@ -15,7 +15,8 @@ pub struct Event {
     pub content: serde_json::Value,
     #[serde(rename = "type")]
     pub event_type: String,
-    pub sender: Option<String>
+    pub sender: Option<String>,
+    pub room: Option<String>
 }
 
 #[derive(Deserialize, Debug)]
@@ -45,6 +46,40 @@ pub struct SyncResult {
     pub rooms: GroupsSyncResult
 }
 
+fn group_events<'a>(container: &'a GroupSyncContainer) -> Box<std::iter::Iterator<Item=&'a Event> + 'a> {
+    Box::new(container.iter().flat_map(|(_, group)| {
+        group.timeline.events.iter().chain(&group.ephemeral.events)
+    }))
+}
+
+impl SyncResult {
+    pub fn events<'a>(&'a self) -> Box<std::iter::Iterator<Item=&'a Event> + 'a> {
+        Box::new(self.presence.events.iter()
+            .chain(group_events(&self.rooms.leave))
+            .chain(group_events(&self.rooms.join))
+            .chain(group_events(&self.rooms.invite)))
+    }
+}
+
+fn fill_group_result(id: &str, container: &mut EventContainer) {
+    for mut evt in &mut container.events {
+        evt.room = Some(id.to_owned());
+    }
+}
+
+fn fill_group_container(container: &mut GroupSyncContainer) {
+    for (id, room) in container {
+        fill_group_result(id, &mut room.timeline);
+        fill_group_result(id, &mut room.ephemeral);
+    }
+}
+
+fn fill_groups_result(result: &mut GroupsSyncResult) {
+    fill_group_container(&mut result.leave);
+    fill_group_container(&mut result.join);
+    fill_group_container(&mut result.invite);
+}
+
 pub fn sync(host: &str, access_token: &str, handle: &tokio_core::reactor::Handle, since: Option<String>) -> Box<Future<Item=SyncResult,Error=Error>> {
     let http = hyper::Client::configure()
         .connector(box_fut_try!(hyper_tls::HttpsConnector::new(1, &handle)
@@ -66,8 +101,11 @@ pub fn sync(host: &str, access_token: &str, handle: &tokio_core::reactor::Handle
             String::from_utf8(body.to_vec()).map_err(|e| e.into())
         })
         .and_then(|body| {
-            println!("{}", body);
             serde_json::from_str(&body).map_err(|e| e.into())
+        })
+        .and_then(|mut body: SyncResult| {
+            fill_groups_result(&mut body.rooms);
+            Ok(body)
         })
         )
 }
