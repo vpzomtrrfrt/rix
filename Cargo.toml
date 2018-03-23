@@ -2,6 +2,9 @@
 name = "rix"
 version = "0.1.0"
 authors = ["Colin Reeder <vpzomtrrfrt@gmail.com>"]
+license = "Apache-2.0"
+description = "Experimental Matrix client using futures"
+repository = "https://github.com/vpzomtrrfrt/rix"
 
 [dependencies]
 hyper = "0.11.22"
