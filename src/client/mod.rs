@@ -10,7 +10,7 @@ use futures::Future;
 use std::sync::Arc;
 use error::Error;
 use HttpsClient;
-pub use self::sync::{SyncResult, SyncStream};
+pub use self::sync::{SyncResult, SyncStream, Event};
 
 pub struct Client {
     http_client: Arc<HttpsClient>,

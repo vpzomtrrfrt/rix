@@ -8,7 +8,7 @@ use futures::{Future, Stream};
 use error::Error;
 use HttpsClient;
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct Event {
     pub content: serde_json::Value,
     #[serde(rename = "type")]
@@ -44,7 +44,7 @@ pub struct SyncResult {
     pub rooms: GroupsSyncResult
 }
 
-fn group_events<'a>(container: &'a GroupSyncContainer) -> Box<std::iter::Iterator<Item=&'a Event> + 'a> {
+fn group_events<'a>(container: &'a GroupSyncContainer) -> Box<std::iter::Iterator<Item=&'a Event> + Send + 'a> {
     Box::new(container.iter().flat_map(|(_, group)| {
         vec![&group.timeline, &group.ephemeral]
             .into_iter()
@@ -57,7 +57,7 @@ fn group_events<'a>(container: &'a GroupSyncContainer) -> Box<std::iter::Iterato
 }
 
 impl SyncResult {
-    pub fn events<'a>(&'a self) -> Box<std::iter::Iterator<Item=&'a Event> + 'a> {
+    pub fn events<'a>(&'a self) -> Box<std::iter::Iterator<Item=&'a Event> + Send + 'a> {
         Box::new(self.presence.events.iter()
             .chain(group_events(&self.rooms.leave))
             .chain(group_events(&self.rooms.join))
