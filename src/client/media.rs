@@ -1,36 +1,31 @@
 use hyper;
-use futures;
 use hyper_tls;
 use urlencoding;
 use serde_json;
-use tokio_core;
 
 use futures::{Future, Stream};
 use error::Error;
-use std::str::FromStr;
 
-pub fn upload<B: Into<hyper::Body>>(host: &str, token: &str, handle: &tokio_core::reactor::Handle, content_type: hyper::mime::Mime, filename: &str, body: B) -> Box<Future<Item=String,Error=Error>> {
-    let http = hyper::Client::configure()
-        .connector(box_fut_try!(hyper_tls::HttpsConnector::new(1, &handle)
-                                                 .map_err(|e| e.into())))
-        .build(&handle);
-    let mut request = hyper::Request::new(
-        hyper::Method::Post,
-        box_fut_try!(hyper::Uri::from_str(
-                &format!("{}/_matrix/media/r0/upload?filename={}&access_token={}",
+pub fn upload<B: Into<hyper::Body>>(host: &str, token: &str, content_type: &str, filename: &str, body: B) -> Box<Future<Item=String,Error=Error>> {
+    let http = hyper::Client::builder()
+        .build(try_future_box!(hyper_tls::HttpsConnector::new(1)
+                                                 .map_err(Error::from)));
+    let request = try_future_box!(hyper::Request::post(
+        &format!("{}/_matrix/media/r0/upload?filename={}&access_token={}",
                          host,
                          urlencoding::encode(filename),
-                         token)).map_err(|e| Error::HTTP(e.into()))));
-    request.headers_mut().set(hyper::header::ContentType(content_type));
-    request.set_body(body);
+                         token))
+        .header(hyper::header::CONTENT_TYPE, content_type)
+        .body(body.into())
+        .map_err(|e| Error::Other(format!("Failed to construct request: {:?}", e))));
     Box::new(http.request(request)
              .map_err(|e| e.into())
              .and_then(|response| {
                  let status = response.status();
-                 response.body().concat2()
+                 response.into_body().concat2()
                      .map_err(|e| e.into())
                      .and_then(move |body| {
-                         if status == hyper::StatusCode::Ok {
+                         if status == hyper::StatusCode::OK {
                              serde_json::from_slice::<serde_json::Value>(&body)
                                  .map_err(|e| e.into())
                          }

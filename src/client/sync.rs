@@ -1,12 +1,9 @@
 use hyper;
-use tokio_core;
-use futures;
 use hyper_tls;
+use futures;
 use std;
-use error;
 use serde_json;
 
-use std::str::FromStr;
 use futures::{Future, Stream};
 use error::Error;
 
@@ -90,21 +87,21 @@ fn fill_groups_result(result: &mut GroupsSyncResult) {
     fill_group_container(&mut result.invite);
 }
 
-pub fn sync(host: &str, access_token: &str, handle: &tokio_core::reactor::Handle, since: Option<String>) -> Box<Future<Item=SyncResult,Error=Error>> {
-    let http = hyper::Client::configure()
-        .connector(box_fut_try!(hyper_tls::HttpsConnector::new(1, &handle)
-                                                 .map_err(|e| e.into())))
-        .build(&handle);
+pub fn sync(host: &str, access_token: &str, since: Option<String>) -> Box<Future<Item=SyncResult,Error=Error> + Send> {
+    let http = hyper::Client::builder()
+        .build(try_future_box!(hyper_tls::HttpsConnector::new(1).map_err(Error::from)));
     let params = if let Some(since) = since {
         format!("&since={}&timeout=30000", since)
     } else {
         "".to_owned()
     };
-    let mut request = hyper::Request::new(hyper::Method::Get,
-                                      box_fut_try!(hyper::Uri::from_str(&format!("{}/_matrix/client/r0/sync?access_token={}{}", host, access_token, params)).map_err(|e| Error::HTTP(e.into()))));
+    let request = try_future_box!(hyper::Request::get(
+        &format!("{}/_matrix/client/r0/sync?access_token={}{}", host, access_token, params))
+        .body(hyper::Body::default())
+        .map_err(|e| Error::Other(format!("Unable to create request: {:?}", e))));
     Box::new(http.request(request)
         .and_then(|response| {
-            response.body().concat2()
+            response.into_body().concat2()
         })
         .map_err(|e| e.into())
         .and_then(|body| {
@@ -123,8 +120,7 @@ pub fn sync(host: &str, access_token: &str, handle: &tokio_core::reactor::Handle
 pub struct SyncStream {
     host: String,
     token: String,
-    handle: tokio_core::reactor::Handle,
-    current_future: Box<Future<Item=SyncResult,Error=Error>>
+    current_future: Box<Future<Item=SyncResult,Error=Error> + Send>
 }
 
 impl Stream for SyncStream {
@@ -134,7 +130,7 @@ impl Stream for SyncStream {
         let poll_result = self.current_future.poll();
         match poll_result {
             Ok(futures::Async::Ready(item)) => {
-                self.current_future = sync(&self.host, &self.token, &self.handle, Some(item.next_batch.clone()));
+                self.current_future = sync(&self.host, &self.token, Some(item.next_batch.clone()));
                 Ok(futures::Async::Ready(Some(item)))
             },
             Ok(futures::Async::NotReady) => Ok(futures::Async::NotReady),
@@ -143,11 +139,10 @@ impl Stream for SyncStream {
     }
 }
 
-pub fn sync_stream(host: &str, access_token: &str, handle: &tokio_core::reactor::Handle) -> SyncStream {
+pub fn sync_stream(host: &str, access_token: &str) -> SyncStream {
     SyncStream {
         host: host.to_owned(),
         token: access_token.to_owned(),
-        handle: handle.clone(),
-        current_future: sync(host, access_token, handle, None)
+        current_future: sync(host, access_token, None)
     }
 }

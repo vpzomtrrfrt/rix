@@ -1,7 +1,6 @@
-extern crate native_tls;
-
 use std;
 use hyper;
+use hyper_tls;
 use serde_json;
 
 quick_error! {
@@ -10,7 +9,7 @@ quick_error! {
         HTTP(e: hyper::Error) {
             from()
         }
-        TLS(e: native_tls::Error) {
+        TLS(e: hyper_tls::Error) {
             from()
         }
         UTF8(e: std::string::FromUtf8Error) {

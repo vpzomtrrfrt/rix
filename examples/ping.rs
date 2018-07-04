@@ -1,18 +1,16 @@
 extern crate rix;
-extern crate tokio_core;
 extern crate futures;
+extern crate tokio;
 
 use futures::{Future, Stream};
 
 fn main() {
     let host = std::env::var("MATRIX_HOST").expect("Missing MATRIX_HOST");
     let token = std::env::var("MATRIX_TOKEN").expect("Missing MATRIX_TOKEN");
-    let mut core = tokio_core::reactor::Core::new().unwrap();
-    let handle = core.handle();
 
-    let task = rix::client::sync_stream(&host, &token, &handle)
+    let task = rix::client::sync_stream(&host, &token)
         .skip(1)
-        .for_each(|item| {
+        .for_each(move |item| {
             println!("{:?}", item);
             for evt in item.events() {
                 if evt.event_type == "m.room.message" {
@@ -20,14 +18,17 @@ fn main() {
                     if let Some(body) = body {
                         if body == "ping" {
                             if let Some(ref room) = evt.room {
-                                handle.spawn(rix::client::send_message(&host, &token, &handle, &room, "pong").map_err(|e|eprintln!("{:?}", e)));
+                                tokio::spawn(rix::client::send_message(&host, &token, &room, "pong").map_err(|e|eprintln!("{:?}", e)));
                             }
                         }
                     }
                 }
             }
             Ok(())
-        });
+        })
+    .map_err(|e| {
+        eprintln!("{:?}", e);
+    });
 
-    core.run(task).unwrap();
+    tokio::run(task);
 }
