@@ -1,6 +1,6 @@
 [package]
 name = "rix"
-version = "0.3.0"
+version = "1.0.0"
 authors = ["Colin Reeder <vpzomtrrfrt@gmail.com>"]
 license = "Apache-2.0"
 description = "Experimental Matrix client using futures"
