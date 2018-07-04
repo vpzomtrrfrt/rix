@@ -13,6 +13,7 @@ use error::Error;
 use HttpsClient;
 pub use self::sync::{SyncResult, SyncStream, Event};
 
+#[derive(Clone)]
 pub struct Client {
     http_client: Arc<HttpsClient>,
     host: String,
