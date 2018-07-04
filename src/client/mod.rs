@@ -4,6 +4,7 @@ use hyper_tls;
 mod sync;
 mod message;
 mod media;
+mod account;
 
 use futures::Future;
 
@@ -29,6 +30,9 @@ impl Client {
         })
     }
 
+    pub fn whoami(&self) -> Box<Future<Item=String, Error=Error> + Send> {
+        account::whoami(&self.http_client, &self.host, &self.token)
+    }
     pub fn sync(&self, since: Option<String>) -> Box<Future<Item=SyncResult, Error=Error> + Send> {
         sync::sync(&self.http_client, &self.host, &self.token, since)
     }
