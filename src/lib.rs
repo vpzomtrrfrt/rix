@@ -18,3 +18,4 @@ pub mod error;
 type HttpsClient = hyper::Client<hyper_tls::HttpsConnector<hyper::client::HttpConnector>>;
 
 pub use client::Client;
+pub use error::Error;
