@@ -1,41 +1,39 @@
 use hyper;
-use hyper_tls;
 use rand;
 use futures;
 
 use rand::Rng;
 use error::Error;
 use futures::{Future, Stream};
+use HttpsClient;
 
-pub fn send_message(host: &str, token: &str, room: &str, msg: &str) -> Box<Future<Item=(),Error=Error> + Send> {
+pub fn send_message(http: &HttpsClient, host: &str, token: &str, room: &str, msg: &str) -> Box<Future<Item=(),Error=Error> + Send> {
     let body = json!({
         "msgtype": "m.text",
         "body": msg
     }).to_string();
-    send_message_internal(host, token, room, body)
+    send_message_internal(http, host, token, room, body)
 }
 
-pub fn send_image(host: &str, token: &str, room: &str, url: &str, msg: &str) -> Box<Future<Item=(),Error=Error> + Send> {
+pub fn send_image(http: &HttpsClient, host: &str, token: &str, room: &str, url: &str, msg: &str) -> Box<Future<Item=(),Error=Error> + Send> {
     let body = json!({
         "msgtype": "m.image",
         "url": url,
         "body": msg
     }).to_string();
-    send_message_internal(host, token, room, body)
+    send_message_internal(http, host, token, room, body)
 }
 
-pub fn send_file(host: &str, token: &str, room: &str, url: &str, msg: &str) -> Box<Future<Item=(),Error=Error> + Send> {
+pub fn send_file(http: &HttpsClient, host: &str, token: &str, room: &str, url: &str, msg: &str) -> Box<Future<Item=(),Error=Error> + Send> {
     let body = json!({
         "msgtype": "m.file",
         "url": url,
         "body": msg
     }).to_string();
-    send_message_internal(host, token, room, body)
+    send_message_internal(http, host, token, room, body)
 }
 
-fn send_message_internal(host: &str, token: &str, room: &str, body: String) -> Box<Future<Item=(),Error=Error> + Send> {
-    let http = hyper::Client::builder()
-        .build(try_future_box!(hyper_tls::HttpsConnector::new(1).map_err(Error::from)));
+fn send_message_internal(http: &HttpsClient, host: &str, token: &str, room: &str, body: String) -> Box<Future<Item=(),Error=Error> + Send> {
     let mut rng = rand::thread_rng();
     let id: String = rng.gen_ascii_chars().take(16).collect();
     let request = try_future_box!(hyper::Request::put(

@@ -1,11 +1,12 @@
 use hyper;
-use hyper_tls;
 use futures;
 use std;
 use serde_json;
 
+use std::sync::Arc;
 use futures::{Future, Stream};
 use error::Error;
+use HttpsClient;
 
 #[derive(Deserialize, Debug)]
 pub struct Event {
@@ -87,9 +88,7 @@ fn fill_groups_result(result: &mut GroupsSyncResult) {
     fill_group_container(&mut result.invite);
 }
 
-pub fn sync(host: &str, access_token: &str, since: Option<String>) -> Box<Future<Item=SyncResult,Error=Error> + Send> {
-    let http = hyper::Client::builder()
-        .build(try_future_box!(hyper_tls::HttpsConnector::new(1).map_err(Error::from)));
+pub fn sync(http: &HttpsClient, host: &str, access_token: &str, since: Option<String>) -> Box<Future<Item=SyncResult,Error=Error> + Send> {
     let params = if let Some(since) = since {
         format!("&since={}&timeout=30000", since)
     } else {
@@ -118,6 +117,7 @@ pub fn sync(host: &str, access_token: &str, since: Option<String>) -> Box<Future
 }
 
 pub struct SyncStream {
+    http_client: Arc<HttpsClient>,
     host: String,
     token: String,
     current_future: Box<Future<Item=SyncResult,Error=Error> + Send>
@@ -130,7 +130,7 @@ impl Stream for SyncStream {
         let poll_result = self.current_future.poll();
         match poll_result {
             Ok(futures::Async::Ready(item)) => {
-                self.current_future = sync(&self.host, &self.token, Some(item.next_batch.clone()));
+                self.current_future = sync(&self.http_client, &self.host, &self.token, Some(item.next_batch.clone()));
                 Ok(futures::Async::Ready(Some(item)))
             },
             Ok(futures::Async::NotReady) => Ok(futures::Async::NotReady),
@@ -139,10 +139,11 @@ impl Stream for SyncStream {
     }
 }
 
-pub fn sync_stream(host: &str, access_token: &str) -> SyncStream {
+pub fn sync_stream(http: Arc<HttpsClient>, host: &str, access_token: &str) -> SyncStream {
     SyncStream {
         host: host.to_owned(),
         token: access_token.to_owned(),
-        current_future: sync(host, access_token, None)
+        current_future: sync(&http, host, access_token, None),
+        http_client: http,
     }
 }

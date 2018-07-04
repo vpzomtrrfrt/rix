@@ -1,15 +1,12 @@
 use hyper;
-use hyper_tls;
 use urlencoding;
 use serde_json;
 
 use futures::{Future, Stream};
 use error::Error;
+use ::HttpsClient;
 
-pub fn upload<B: Into<hyper::Body>>(host: &str, token: &str, content_type: &str, filename: &str, body: B) -> Box<Future<Item=String,Error=Error>> {
-    let http = hyper::Client::builder()
-        .build(try_future_box!(hyper_tls::HttpsConnector::new(1)
-                                                 .map_err(Error::from)));
+pub fn upload<B: Into<hyper::Body>>(http: &HttpsClient, host: &str, token: &str, content_type: &str, filename: &str, body: B) -> Box<Future<Item=String,Error=Error> + Send> {
     let request = try_future_box!(hyper::Request::post(
         &format!("{}/_matrix/media/r0/upload?filename={}&access_token={}",
                          host,

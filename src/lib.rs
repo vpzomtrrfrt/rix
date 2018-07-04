@@ -14,3 +14,7 @@ extern crate try_future;
 
 pub mod client;
 pub mod error;
+
+type HttpsClient = hyper::Client<hyper_tls::HttpsConnector<hyper::client::HttpConnector>>;
+
+pub use client::Client;
