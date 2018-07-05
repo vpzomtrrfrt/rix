@@ -1,7 +1,7 @@
-use std;
 use hyper;
 use hyper_tls;
 use serde_json;
+use std;
 
 quick_error! {
     #[derive(Debug)]

@@ -1,5 +1,5 @@
-extern crate rix;
 extern crate futures;
+extern crate rix;
 extern crate tokio;
 
 use futures::{Future, Stream};
@@ -10,7 +10,8 @@ fn main() {
 
     let client = rix::Client::new(host, token).expect("Failed to construct client");
 
-    let task = client.sync_stream()
+    let task = client
+        .sync_stream()
         .skip(1)
         .for_each(move |item| {
             println!("{:?}", item);
@@ -20,7 +21,11 @@ fn main() {
                     if let Some(body) = body {
                         if body == "ping" {
                             if let Some(ref room) = evt.room {
-                                tokio::spawn(client.send_message(&room, "pong").map_err(|e|eprintln!("{:?}", e)));
+                                tokio::spawn(
+                                    client
+                                        .send_message(&room, "pong")
+                                        .map_err(|e| eprintln!("{:?}", e)),
+                                );
                             }
                         }
                     }
@@ -28,9 +33,9 @@ fn main() {
             }
             Ok(())
         })
-    .map_err(|e| {
-        eprintln!("{:?}", e);
-    });
+        .map_err(|e| {
+            eprintln!("{:?}", e);
+        });
 
     tokio::run(task);
 }

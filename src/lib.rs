@@ -1,6 +1,6 @@
+extern crate futures;
 extern crate hyper;
 extern crate hyper_tls;
-extern crate futures;
 extern crate rand;
 extern crate urlencoding;
 #[macro_use]

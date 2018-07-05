@@ -1,6 +1,6 @@
+extern crate futures;
 extern crate rix;
 extern crate tokio;
-extern crate futures;
 
 use futures::{Future, Stream};
 
@@ -10,10 +10,13 @@ fn main() {
 
     let client = rix::Client::new(host, token).expect("Failed to construct client");
 
-    tokio::run(client.whoami()
-               .and_then(|name| {
-                   println!("{}", name);
-                   Ok(())
-               })
-               .map_err(|e| panic!("{:?}", e)));
+    tokio::run(
+        client
+            .whoami()
+            .and_then(|name| {
+                println!("{}", name);
+                Ok(())
+            })
+            .map_err(|e| panic!("{:?}", e)),
+    );
 }

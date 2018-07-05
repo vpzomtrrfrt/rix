@@ -1,6 +1,6 @@
+extern crate futures;
 extern crate rix;
 extern crate tokio;
-extern crate futures;
 
 use futures::{Future, Stream};
 
@@ -10,29 +10,36 @@ fn main() {
 
     let client = rix::Client::new(host, token).expect("Failed to construct client");
 
-    let task = client.upload_media("text/plain", "upload.rs", &include_bytes!("./upload.rs")[..])
+    let task = client
+        .upload_media(
+            "text/plain",
+            "upload.rs",
+            &include_bytes!("./upload.rs")[..],
+        )
         .and_then(|url| {
-            client.sync_stream()
-                .skip(1)
-                .for_each(move |frame| {
-                    for evt in frame.events() {
-                        if evt.event_type == "m.room.message" {
-                            let body = evt.content["body"].as_str();
-                            if let Some(body) = body {
-                                if body == "!upload.rs" {
-                                    if let Some(ref room) = evt.room {
-                                        tokio::spawn(client.send_file(&room, &url, "upload.rs").map_err(|e| eprintln!("{:?}", e)));
-                                    }
+            client.sync_stream().skip(1).for_each(move |frame| {
+                for evt in frame.events() {
+                    if evt.event_type == "m.room.message" {
+                        let body = evt.content["body"].as_str();
+                        if let Some(body) = body {
+                            if body == "!upload.rs" {
+                                if let Some(ref room) = evt.room {
+                                    tokio::spawn(
+                                        client
+                                            .send_file(&room, &url, "upload.rs")
+                                            .map_err(|e| eprintln!("{:?}", e)),
+                                    );
                                 }
                             }
                         }
                     }
-                    Ok(())
-                })
+                }
+                Ok(())
+            })
         })
-    .map_err(|e| {
-        eprintln!("{:?}", e);
-    });
+        .map_err(|e| {
+            eprintln!("{:?}", e);
+        });
 
     tokio::run(task);
 }
