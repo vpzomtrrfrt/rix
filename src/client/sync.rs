@@ -50,10 +50,7 @@ fn group_events<'a>(
     Box::new(container.iter().flat_map(|(_, group)| {
         vec![&group.timeline, &group.ephemeral]
             .into_iter()
-            .filter_map(|x| match x {
-                &Some(ref x) => Some(x),
-                &None => None,
-            })
+            .filter_map(|x| x.as_ref())
             .flat_map(|x| x.events.iter())
     }))
 }
